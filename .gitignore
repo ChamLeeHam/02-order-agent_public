@@ -1,0 +1,38 @@
+# 虚拟环境
+.venv/
+
+# 环境变量、密钥
+.env
+.env.*
+!.env.example
+model/*
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+
+# PyCharm 本地配置
+.idea/
+*.iml
+
+# 检查工具缓存、日志
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# 前端依赖和构建产物
+node_modules/
+dist/
+# 在非前端项目目录误运行 npm 生成的空锁文件
+/package-lock.json
+/ui/package-lock.json
+
+# 本地数据库和私钥
+*.db
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+*.p12
+*.pfx
