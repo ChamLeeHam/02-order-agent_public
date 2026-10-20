@@ -56,7 +56,7 @@ class MenuItem(BaseModel):
     is_featured: Optional[bool] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    # 以下两个字段用于前端展示，不是数据库列。
+
     formatted_price: str = ""
     spice_text: str = ""
 
