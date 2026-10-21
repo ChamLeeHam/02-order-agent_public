@@ -184,7 +184,14 @@ def book_endpoint(limit: int = 1):
 @app.get("/menu/list", response_model=MenuListResponse)
 def menu_endpoint():
     sql = """
-        SELECT * FROM menu_items ORDER BY id
+        SELECT
+        id, dish_name, price, description, category,
+        spice_level, flavor, main_ingredients,
+        cooking_method,
+        is_vegetarian, allergens, is_available
+        FROM menu_items
+        WHERE is_available = 1
+        ORDER BY category, dish_name
           """
     with pymysql.connect(
             host=os.getenv("MYSQL_HOST"),
