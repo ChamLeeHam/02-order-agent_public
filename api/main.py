@@ -1,8 +1,7 @@
 # 将后段能力抽象成具体接口供前端调用
 import os
-import json
-import logging
-from contextlib import aclosing
+import re
+from difflib import SequenceMatcher
 from typing import Optional, List
 
 import pymysql
@@ -12,9 +11,47 @@ from pymysql.cursors import DictCursor
 from starlette.responses import StreamingResponse
 from datetime import datetime
 
+
 from agent.langchain_assistant import assistant_query, delivery
+from utils.redis_utils import get_redis_client
+
+
 
 app = FastAPI()
+
+
+_PUNCT_RE = re.compile(r"[\s,，。.!！？?;；:：'\"“”‘’（）()\[\]【】<>《》、/\\|_\-]+")
+
+# 对文本进行清洗的函数：
+def _normalize_text(text: str) -> str:
+    return _PUNCT_RE.sub("", (text or "").strip())
+
+def get_similarity_score(query: str, fqu_question: str):
+    """判断用户的问题和FAQ的问题相似度得分"""
+    query = _normalize_text(query)
+    faq_question = _normalize_text(fqu_question)
+    # 1.计算两个字符串的相似度得分
+    similarity_score = SequenceMatcher(None, query, faq_question).ratio()
+    query = set(list(query))
+    faq_question = set(list(faq_question))
+    jaccard_score = len(query & faq_question) / len(query | faq_question) if query | faq_question else 0
+    # 3. 计算两个字符串的包含关系得分
+    bonus = 0
+    if query in faq_question or faq_question in query:
+        bonus = 0.5
+    return similarity_score * 0.6 + jaccard_score * 0.4 + bonus  # 根据实际需求调整权重
+
+
+
+
+class FAQItem(BaseModel):
+    id: str
+    question: str
+    answer: str
+
+
+
+# faq_items = load_faq_from_redis()  # 从redis中加载faq数据
 
 class ChatRequest(BaseModel):
     query: str = Field(description="用户输入的聊天内容")
@@ -60,6 +97,11 @@ class MenuItem(BaseModel):
     formatted_price: str = ""
     spice_text: str = ""
 
+class FAQRequest(BaseModel):
+    success: bool
+    query: str
+    suggestions: List[FAQItem]
+
 
 
 
@@ -74,6 +116,18 @@ class MenuListResponse(BaseModel):
     menu_items: List[MenuItem]
     count: int
     message: str
+
+
+def load_faq_from_redis() -> List[FAQItem]:
+    """从redis中读取所有的FAQ数据"""
+    client = get_redis_client()
+    faq_all_ids = client.smembers("faq:ids")
+    full_keys = [f"faq:item:{id}" for id in faq_all_ids]
+    pipeline = client.pipeline()
+    for key in full_keys:
+        pipeline.hgetall(key)
+    faq_items = pipeline.execute()
+    return [FAQItem(**item) for item in faq_items if item]
 
 
 @app.post("/chat")
@@ -151,3 +205,27 @@ def menu_endpoint():
                 ))
             return MenuListResponse(success=True, menu_items=item_list, count=len(item_list),
                                     message="success")
+
+
+
+@app.get("/faq/suggest")
+def faq_suggest_endpoint(query:str, limit:int):
+    """提供FAQ问题的建议列表"""
+    # 1.从redis中获取所有的FAQ数据
+    faq_items = load_faq_from_redis()
+
+    # 2.根据用户的问题进行匹配
+    scores_list = []
+    for faq_items in faq_items:
+        score = get_similarity_score(query, faq_items.question) #将用户的问题和FAQ的问题进行相似度计算
+        scores_list.append((score, faq_items))  #将得分和FAQ问题进行绑定
+
+    # 3.根据得分进行排序
+    scores_list.sort(key=lambda x: x[0], reverse=True)
+    limit = 2
+    top_k_faq_items = [faq_items for _, faq_items in scores_list[:limit]]
+
+    # 4.返回结果
+    return FAQRequest(success=True, query=query, suggestions=top_k_faq_items)
+
+
