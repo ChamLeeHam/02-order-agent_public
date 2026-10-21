@@ -34,7 +34,7 @@ def get_similarity_score(query: str, fqu_question: str):
     similarity_score = SequenceMatcher(None, query, faq_question).ratio()
     query = set(list(query))
     faq_question = set(list(faq_question))
-    jaccard_score = len(query & faq_question) / len(query | faq_question) if query | faq_question else 0
+    jaccard_score = len(query.intersection(faq_question)) / len(query.union(faq_question))
     # 3. 计算两个字符串的包含关系得分
     bonus = 0
     if query in faq_question or faq_question in query:
