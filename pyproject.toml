@@ -17,5 +17,6 @@ dependencies = [
     "pymilvus>=3.0.2",
     "pymysql>=1.2.3",
     "python-dotenv>=1.2.4",
+    "redis>=8.1.0",
     "sentence-transformers>=6.1.0",
 ]

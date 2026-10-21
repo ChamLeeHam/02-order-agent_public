@@ -24,3 +24,9 @@
     docker run -d  --name attu   -p 8000:3000 -e MILVUS_URL=host.docker.internal:19530  zilliz/attu:v2.5
 
     standalone.bat start
+
+
+
+
+### 前端链接
+    http://localhost:3000//docs#/default/chat_endpoint_chat_post
